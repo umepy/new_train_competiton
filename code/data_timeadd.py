@@ -20,7 +20,7 @@ def doniti(date):
             return 0
 
 class timeadd():
-    def __init__(self,name,distance=20):
+    def __init__(self,name,distance=20,NN=False):
         self.train = pd.read_csv('../data/points/'+name+'_'+str(distance)+'_train.csv')
         self.timedf=pd.read_csv('../data/train.csv',parse_dates=True,index_col=0)
         self.timedf = self.timedf.index.tolist()
@@ -33,14 +33,21 @@ class timeadd():
         self.train['hour_cos'] = self.cos
         self.train['hour_sin'] = self.sin
         self.train['holiday'] = self.doniti
-        df = pd.DataFrame(pd.get_dummies(self.train['state']).as_matrix(), columns=['none', 'people', 'machine', 'weather'])
-        for i in self.train.columns:
-            if i!='state':
-                df[i] = self.train[i].as_matrix()
+        if NN:
+            df = pd.DataFrame(pd.get_dummies(self.train['state']).as_matrix(), columns=['none', 'people', 'machine', 'weather'])
+            for i in self.train.columns:
+                if i!='state':
+                    df[i] = self.train[i].as_matrix()
+        #pprint.pprint(df)
+        print(self.train)
 
-        pprint.pprint(df)
-        with open('../data/pickle/'+name+'_'+str(distance)+'.pickle', 'wb') as f:
-            pickle.dump(df,f)
+        if NN:
+            with open('../data/pickle/' + name + '_' + str(distance) + '_NN.pickle', 'wb') as f:
+                pickle.dump(df, f)
+        else:
+            with open('../data/pickle/'+name+'_'+str(distance)+'.pickle', 'wb') as f:
+                pickle.dump(self.train,f)
 
 if __name__=='__main__':
-    my=timeadd('keihintohoku',20)
+    for i in ['keihintohoku', 'keiyou', 'saikyoukawagoe', 'tyuou', 'uchibou']:
+        my=timeadd(i,20,NN=True)
