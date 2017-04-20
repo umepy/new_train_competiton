@@ -24,7 +24,7 @@ class NeuralNetC():
         self.model.add(Dense(4, input_dim=4))
         self.model.add(Activation("softmax"))
         self.model.compile(loss="categorical_crossentropy", optimizer="adam")
-    def fit(self,x,y,size,epoch,weight):
-        self.model.fit(x,y,batch_size=size,epochs=epoch,validation_split=0.2,verbose=0,callbacks=[self.ES,self.HS],class_weight=weight)
+    def fit(self,x,y,size,epoch):
+        self.model.fit(x,y,batch_size=size,epochs=epoch,validation_split=0.2,verbose=0,callbacks=[self.ES,self.HS])
     def predict(self,x):
         return self.model.predict_proba(x,batch_size=1,verbose=0)

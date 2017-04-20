@@ -11,6 +11,7 @@ from knn import KNN
 from adaboost import adaboost
 from gboost import gboost
 from SVC import SVC
+from naive_bayes import NaiveBayes
 import tqdm
 
 class Validation():
@@ -74,7 +75,13 @@ class Validation():
         data = self.trains[name[0]]
         for i in range(1, len(name)):
             data = np.concatenate((data, self.trains[name[i]]), axis=0)
-        return data[0:num*4,1:],data[4:(num+1)*4,:1]
+
+        #学習用のダミー訓練データを挿入
+        x_data = np.array([[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]])
+        y_data = np.array([0,1,2,3])
+        x_data = np.concatenate((x_data,data[0:num*4,1:]))
+        y_data = np.concatenate((y_data,data[4:(num+1)*4,0]))
+        return x_data,y_data
     def run(self):
         #５通りの訓練データを作成する
         train_names=[]
@@ -83,7 +90,7 @@ class Validation():
         train_names.append(['keihintohoku','keiyou','tyuou','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','tyuou'])
-        my = gboost(True)
+        my = adaboost()
         j = train_names[0]
         result=[]
         #初期値は定数値で与える
@@ -96,22 +103,22 @@ class Validation():
             for nn in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
                 self.mymean[np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
 
-            if i%1000==0:
+            if i%1==0:
                 x, y = self.getalldata(j, i)
-                x=x.copy(order='C')
-                y=y.copy(order='C')
+                #x=x.copy(order='C')
+                #y=y.copy(order='C')
                 my.fit(x, y)
-                my.predict(self.getdata('keihintohoku', i, 'x'))
-                print(str(i) + ':\t' + str(self.loss_sum / i)+'\t'+str(self.loss_mean / i))
                 one=1
             else:
                 if one==1:
                     pass
                     #my.fit(self.getdata(j, i, xy='x'), self.getdata(j, i, xy='y'))
 
+            if i%1000==0:
+                print(str(i) + ':\t' + str(self.loss_sum / i) + '\t' + str(self.loss_mean / i))
 
             if one!=0:
-                self.logloss(my.predict(self.getdata('keihintohoku',i,'x'))[0], self.getdataNN('keihintohoku',i,'y'))
+                self.logloss(my.predict(self.getdata('keihintohoku',i,'x')), self.getdataNN('keihintohoku',i,'y'))
                 self.logloss_mean(self.mymean/np.mean(self.mymean)/4.0, self.getdataNN('keihintohoku',i,'y'))
             else:
                 self.logloss(self.mymean / np.mean(self.mymean) / 4.0,self.getdataNN('keihintohoku', i, 'y'))

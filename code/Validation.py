@@ -8,6 +8,7 @@ import pickle
 import sys
 sys.path.append('./code')
 from NeuralNet import NeuralNetC
+
 import tqdm
 
 class Validation():
@@ -73,14 +74,14 @@ class Validation():
 
             if i%1000==0:
                 x, y = self.getalldata(j, i)
-                weight={}
-                for tt in range(4):
-                    if self.mymean[tt]==0:
-                        tmp=1
-                    else:
-                        tmp = 1.0 / self.mymean[tt]
-                    weight[tt]=tmp
-                my.fit(x, y, size=size, epoch=epoch,weight=weight)
+                # weight={}
+                # for tt in range(4):
+                #     if self.mymean[tt]==0:
+                #         tmp=1
+                #     else:
+                #         tmp = 1.0 / self.mymean[tt]
+                #     weight[tt]=tmp
+                my.fit(x, y, size=size, epoch=epoch)
                 print(str(i) + ':\t' + str(self.loss_sum / 1000)+'\t'+str(self.loss_mean / 1000))
                 self.loss_sum=0
                 self.loss_mean=0
