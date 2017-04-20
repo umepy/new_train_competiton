@@ -7,7 +7,10 @@ import pandas as pd
 import pickle
 import sys
 sys.path.append('./code')
-from NeuralNet import NeuralNetC
+from knn import KNN
+from adaboost import adaboost
+from gboost import gboost
+from SVC import SVC
 import tqdm
 
 class Validation():
@@ -22,33 +25,56 @@ class Validation():
         self.distance = dis
     def read_data(self):
         self.trains={}
+        self.NNtrains = {}
+        for i in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
+            with open('../data/pickle/'+i+'_'+str(self.distance)+'.pickle','rb') as f:
+                self.trains[i] = pickle.load(f).as_matrix()
         for i in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
             with open('../data/pickle/'+i+'_'+str(self.distance)+'_NN.pickle','rb') as f:
-                self.trains[i] = pickle.load(f).as_matrix()
+                self.NNtrains[i] = pickle.load(f).as_matrix()
     def getdata(self,name,num,xy):
         if xy=='x':
             if type(name) == type([]):
                 data = self.trains[name[0]]
                 for i in range(1,len(name)):
                     data=np.concatenate((data,self.trains[name[i]]),axis=0)
-                return data[num:num+5,4:]
+                return data[num:num+5,1:]
             else:
                 data = self.trains[name]
-                return data[num:num+1,4:]
+                return data[num:num+1,1:]
         elif xy=='y':
             if type(name) == type([]):
                 data = self.trains[name[0]]
                 for i in range(1, len(name)):
                     data = np.concatenate((data, self.trains[name[i]]), axis=0)
-                return data[num+1:num+6,:4]
+                return data[num+1:num+6,:1]
             else:
                 data = self.trains[name]
+                return data[num:num + 1, :1]
+    def getdataNN(self,name,num,xy):
+        if xy=='x':
+            if type(name) == type([]):
+                data = self.NNtrains[name[0]]
+                for i in range(1,len(name)):
+                    data=np.concatenate((data,self.NNtrains[name[i]]),axis=0)
+                return data[num:num+5,4:]
+            else:
+                data = self.NNtrains[name]
+                return data[num:num+1,4:]
+        elif xy=='y':
+            if type(name) == type([]):
+                data = self.NNtrains[name[0]]
+                for i in range(1, len(name)):
+                    data = np.concatenate((data, self.NNtrains[name[i]]), axis=0)
+                return data[num+1:num+6,:4]
+            else:
+                data = self.NNtrains[name]
                 return data[num:num + 1, :4]
     def getalldata(self,name,num):
         data = self.trains[name[0]]
         for i in range(1, len(name)):
             data = np.concatenate((data, self.trains[name[i]]), axis=0)
-        return data[0:num*4,4:],data[4:(num+1)*4,:4]
+        return data[0:num*4,1:],data[4:(num+1)*4,:1]
     def run(self):
         #５通りの訓練データを作成する
         train_names=[]
@@ -57,41 +83,45 @@ class Validation():
         train_names.append(['keihintohoku','keiyou','tyuou','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','tyuou'])
-        my = NeuralNetC()
+        my = gboost(True)
         j = train_names[0]
         result=[]
         #初期値は定数値で与える
         result.append([1,0,0,0])
         self.logloss([1,0,0,0],self.getdata('keihintohoku',0,'y'))
         self.logloss_mean([1, 0, 0, 0], self.getdata('keihintohoku', 0, 'y'))
-        size = 16
-        epoch = 20
+        one=0
         for i in range(1,len(self.trains['tyuou'])):
             result=[]
             for nn in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
-                self.mymean[np.argmax(self.getdata(nn, i - 1, 'y'))] += 1
+                self.mymean[np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
 
             if i%1000==0:
                 x, y = self.getalldata(j, i)
-                weight={}
-                for tt in range(4):
-                    if self.mymean[tt]==0:
-                        tmp=1
-                    else:
-                        tmp = 1.0 / self.mymean[tt]
-                    weight[tt]=tmp
-                my.fit(x, y, size=size, epoch=epoch,weight=weight)
-                print(str(i) + ':\t' + str(self.loss_sum / 1000)+'\t'+str(self.loss_mean / 1000))
-                self.loss_sum=0
-                self.loss_mean=0
+                x=x.copy(order='C')
+                y=y.copy(order='C')
+                my.fit(x, y)
+                my.predict(self.getdata('keihintohoku', i, 'x'))
+                print(str(i) + ':\t' + str(self.loss_sum / i)+'\t'+str(self.loss_mean / i))
+                one=1
             else:
-                pass
-                #my.fit(self.getdata(j, i, xy='x'), self.getdata(j, i, xy='y'),size=size,epoch=epoch)
-            self.logloss(my.predict(self.getdata('keihintohoku',i,'x')), self.getdata('keihintohoku',i,'y'))
-            self.logloss_mean(self.mymean/np.mean(self.mymean)/4.0, self.getdata('keihintohoku',i,'y'))
+                if one==1:
+                    pass
+                    #my.fit(self.getdata(j, i, xy='x'), self.getdata(j, i, xy='y'))
+
+
+            if one!=0:
+                self.logloss(my.predict(self.getdata('keihintohoku',i,'x'))[0], self.getdataNN('keihintohoku',i,'y'))
+                self.logloss_mean(self.mymean/np.mean(self.mymean)/4.0, self.getdataNN('keihintohoku',i,'y'))
+            else:
+                self.logloss(self.mymean / np.mean(self.mymean) / 4.0,self.getdataNN('keihintohoku', i, 'y'))
+                self.logloss_mean(self.mymean / np.mean(self.mymean) / 4.0, self.getdataNN('keihintohoku', i, 'y'))
 
     def logloss(self,pred,act):
-        self.loss_sum += -1*np.log(np.sum(pred*act))
+        tmp = np.sum(pred * act)
+        if tmp == 0:
+            tmp = 1.0e-15
+        self.loss_sum += -1*np.log(tmp)
     def logloss_mean(self,pred,act):
         tmp=np.sum(pred * act)
         if tmp == 0:
