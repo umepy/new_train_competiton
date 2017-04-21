@@ -12,7 +12,9 @@ from adaboost import adaboost
 from gboost import gboost
 from SVC import SVC
 from naive_bayes import NaiveBayes
+from xgboost import xgboost
 import tqdm
+
 
 class Validation():
     def __init__(self,dis):
@@ -90,7 +92,7 @@ class Validation():
         train_names.append(['keihintohoku','keiyou','tyuou','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','tyuou'])
-        my = adaboost()
+        my = xgboost()
         j = train_names[0]
         result=[]
         #初期値は定数値で与える
@@ -103,7 +105,7 @@ class Validation():
             for nn in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
                 self.mymean[np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
 
-            if i%1==0:
+            if i%5==0:
                 x, y = self.getalldata(j, i)
                 #x=x.copy(order='C')
                 #y=y.copy(order='C')
