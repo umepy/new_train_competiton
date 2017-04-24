@@ -20,10 +20,11 @@ class Validation():
     def __init__(self,dis):
         self.set_distance(dis)
         self.read_data()
-        self.loss_sum=0
-        self.loss_mean=0
+        self.loss_sum=[0,0,0,0,0]
+        self.loss_mean=[0,0,0,0,0]
+        self.name = ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']
         #number
-        self.mymean=[0,0,0,0]
+        self.mymean=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
     def set_distance(self,dis):
         self.distance = dis
     def read_data(self):
@@ -92,50 +93,49 @@ class Validation():
         train_names.append(['keihintohoku','keiyou','tyuou','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','tyuou'])
-        my = gboost(False)
-        j = train_names[0]
-        result=[]
-        #初期値は定数値で与える
-        result.append([1,0,0,0])
-        self.logloss([1,0,0,0],self.getdata('keihintohoku',0,'y'))
-        self.logloss_mean([1, 0, 0, 0], self.getdata('keihintohoku', 0, 'y'))
+        models = []
+        for i in range(5):
+            models.append(gboost(True))
+            #初期値は定数値で与える
+            self.logloss([1,0,0,0],self.getdata('keihintohoku',0,'y'),i)
+            self.logloss_mean([1, 0, 0, 0], self.getdata('keihintohoku', 0, 'y'),i)
+
         one=0
         for i in range(1,len(self.trains['tyuou'])):
-            result=[]
-            for nn in ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']:
-                self.mymean[np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
+            for j in range(5):
+                for nn in train_names[j]:
+                    self.mymean[j][np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
 
-            if i%5==0:
-                x, y = self.getalldata(j, i)
-                #x=x.copy(order='C')
-                #y=y.copy(order='C')
-                my.fit(x, y)
-                one=1
-            else:
-                if one==1:
-                    pass
-                    #my.fit(self.getdata(j, i, xy='x'), self.getdata(j, i, xy='y'))
+                if i%5==0:
+                    x, y = self.getalldata(train_names[j], i)
+                    #x=x.copy(order='C')
+                    #y=y.copy(order='C')
+                    models[j].fit(x,y)
+                    one=1
 
+                #誤差計算
+                if one!=0:
+                    self.logloss(models[j].predict(self.getdata(self.name[j],i,'x')), self.getdataNN(self.name[j],i,'y'),j)
+                    self.logloss_mean(self.mymean[j]/np.mean(self.mymean[j])/4.0, self.getdataNN(self.name[j],i,'y'),j)
+                else:
+                    self.logloss(self.mymean[j] / np.mean(self.mymean[j]) / 4.0,self.getdataNN(self.name[j], i, 'y'),j)
+                    self.logloss_mean(self.mymean[j] / np.mean(self.mymean[j]) / 4.0, self.getdataNN(self.name[j], i, 'y'),j)
+            #誤差集計＆表示
             if i%1000==0:
-                print(str(i) + ':\t' + str(self.loss_sum / i) + '\t' + str(self.loss_mean / i))
+                print(str(i) + ':\t' + str(np.mean(self.loss_sum) / 1000) + '\t' + str(np.mean(self.loss_mean) / 1000))
+                self.loss_sum=[0,0,0,0,0]
+                self.loss_mean=[0,0,0,0,0]
 
-            if one!=0:
-                self.logloss(my.predict(self.getdata('keihintohoku',i,'x')), self.getdataNN('keihintohoku',i,'y'))
-                self.logloss_mean(self.mymean/np.mean(self.mymean)/4.0, self.getdataNN('keihintohoku',i,'y'))
-            else:
-                self.logloss(self.mymean / np.mean(self.mymean) / 4.0,self.getdataNN('keihintohoku', i, 'y'))
-                self.logloss_mean(self.mymean / np.mean(self.mymean) / 4.0, self.getdataNN('keihintohoku', i, 'y'))
-
-    def logloss(self,pred,act):
+    def logloss(self,pred,act,j):
         tmp = np.sum(pred * act)
         if tmp == 0:
             tmp = 1.0e-15
-        self.loss_sum += -1*np.log(tmp)
-    def logloss_mean(self,pred,act):
+        self.loss_sum[j] += -1*np.log(tmp)
+    def logloss_mean(self,pred,act,j):
         tmp=np.sum(pred * act)
         if tmp == 0:
             tmp=1.0e-15
-        self.loss_mean += -1*np.log(tmp)
+        self.loss_mean[j] += -1*np.log(tmp)
 
 
 if __name__=='__main__':
