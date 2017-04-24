@@ -15,6 +15,7 @@ from naive_bayes import NaiveBayes
 from xgboost import xgboost
 from lstm import lstmC
 import tqdm
+from sklearn.metrics import log_loss
 
 
 class Validation():
@@ -26,7 +27,7 @@ class Validation():
         self.loss_lstm = [0, 0, 0, 0, 0]
         self.name = ['keihintohoku','keiyou','saikyoukawagoe','tyuou','uchibou']
         #number
-        self.mymean=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
+        self.mymean=[[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]]
     def set_distance(self,dis):
         self.distance = dis
     def read_data(self):
@@ -82,6 +83,8 @@ class Validation():
                 data = self.NNtrains[name]
                 return data[num:num + 1, :4]
     def getalldata(self,name,num):
+        if type(name) != type([]):
+            return self.trains[name][0:num, 1:], None
         data = self.trains[name[0]]
         for i in range(1, len(name)):
             data = np.concatenate((data, self.trains[name[i]]), axis=0)
@@ -92,6 +95,9 @@ class Validation():
         x_data = np.concatenate((x_data,data[0:num*4,1:]))
         y_data = np.concatenate((y_data,data[4:(num+1)*4,0]))
         return x_data,y_data
+    def getalldataNN(self,name,num):
+        data = self.NNtrains[name]
+        return data[1:num+1,:4]
     def getalllstmdata(self,name,num):
         data_x = self.Time_x[name[0]][:num]
         data_y = self.Time_y[name[0]][:num]
@@ -100,9 +106,20 @@ class Validation():
             data_y = np.concatenate((data_y, self.Time_y[name[i]][:num]), axis=0)
         return data_x,data_y
     def getlstmdata(self,name,num):
-        data_x = self.Time_x[name][num:num+1]
-        #data_y = self.Time_y[name][num:num+1]
-        return np.array(data_x)
+        data_x = self.Time_x[name][:num+1]
+        return data_x
+    def logloss(self,pred,act,j):
+            self.loss_sum[j] += log_loss(act,pred,normalize=False)
+    def logloss_mean(self,pred,act,j):
+        tmp=[pred]*len(act)
+        self.loss_mean[j] += log_loss(act,tmp,normalize=False)
+    def logloss_lstm(self,pred,act,j):
+        kotei = np.array([self.mymean[j] / np.mean(self.mymean[j]) / 4.0])
+        kotei_2=np.array([self.mymean[j]/np.mean(self.mymean[j])/4.0])
+        for _ in range(len(act) - len(pred)-1):
+            kotei=np.concatenate((kotei,kotei_2),axis=0)
+        pred=np.concatenate((kotei,np.array(pred)))
+        self.loss_lstm[j] += log_loss(act,pred,normalize=False)
     def run(self):
         #５通りの訓練データを作成する
         train_names=[]
@@ -116,66 +133,39 @@ class Validation():
         for i in range(5):
             models.append(gboost(True))
             nn_models.append(lstmC())
-            #初期値は定数値で与える
-            self.logloss([1,0,0,0],self.getdata('keihintohoku',0,'y'),i)
-            self.logloss_mean([1, 0, 0, 0], self.getdata('keihintohoku', 0, 'y'),i)
-            self.logloss_lstm([1, 0, 0, 0], self.getdata('keihintohoku', 0, 'y'), i)
-
-        one=0
-        nn_flag=0
+        result=[]
         for i in range(1,len(self.trains['tyuou'])):
+            if i%1000==0:
+                nn_models = []
+                for _ in range(5):
+                    nn_models.append(lstmC())
             for j in range(5):
                 for nn in train_names[j]:
                     self.mymean[j][np.argmax(self.getdataNN(nn, i - 1, 'y'))] += 1
 
-                if i%10==0:
+                if i%5==0:
                     x, y = self.getalldata(train_names[j], i)
-                    #x=x.copy(order='C')
-                    #y=y.copy(order='C')
                     models[j].fit(x,y)
-                    one=1
                 if i%1000==0 and i>16:
                     #時系列入力のためずらす
                     x,y = self.getalllstmdata(train_names[j],i-16)
-                    nn_models[j].fit(x,y,32,10)
-                    nn_flag=1
+                    nn_models[j].fit(x,y,512,10)
 
                 #誤差計算
-                if one!=0:
-                    self.logloss(models[j].predict(self.getdata(self.name[j],i,'x')), self.getdataNN(self.name[j],i,'y'),j)
-                    self.logloss_mean(self.mymean[j]/np.mean(self.mymean[j])/4.0, self.getdataNN(self.name[j],i,'y'),j)
-                else:
-                    self.logloss(self.mymean[j] / np.mean(self.mymean[j]) / 4.0,self.getdataNN(self.name[j], i, 'y'),j)
-                    self.logloss_mean(self.mymean[j] / np.mean(self.mymean[j]) / 4.0, self.getdataNN(self.name[j], i, 'y'),j)
-                if nn_flag==1:
-                    self.logloss_lstm(nn_models[j].predict(self.getlstmdata(self.name[j],i-16)),self.getdataNN(self.name[j],i,'y'),j)
-                else:
-                    self.logloss_lstm(self.mymean[j] / np.mean(self.mymean[j]) / 4.0,self.getdataNN(self.name[j], i, 'y'), j)
+                if i%1000==0:
+                    x, y = self.getalldata(self.name[j], i)
+                    self.logloss(models[j].predict(x),self.getalldataNN(self.name[j],i),j)
+                    self.logloss_mean(self.mymean[j]/np.mean(self.mymean[j])/4.0, self.getalldataNN(self.name[j],i),j)
+                    self.logloss_lstm(nn_models[j].predict(self.getlstmdata(self.name[j],i-16)),self.getalldataNN(self.name[j],i),j)
             #誤差集計＆表示
             if i%1000==0:
-                print(str(i) + ':\t' + str(np.mean(self.loss_sum) / 1000) + '\t' + str(np.mean(self.loss_mean) / 1000) + '\t'+str(np.mean(self.loss_lstm)/1000))
+                print(str(i) + ':\t' + str(np.mean(self.loss_sum) / i) + '\t' + str(np.mean(self.loss_mean) / i) + '\t'+str(np.mean(self.loss_lstm)/i))
+                result.append([np.mean(self.loss_sum) / i,np.mean(self.loss_mean) / i,np.mean(self.loss_lstm)/i])
                 self.loss_sum=[0,0,0,0,0]
                 self.loss_mean=[0,0,0,0,0]
                 self.loss_lstm=[0,0,0,0,0]
-                nn_models = []
-                for _ in range(5):
-                    nn_models.append(lstmC())
-    def logloss(self,pred,act,j):
-        tmp = np.sum(pred * act)
-        if tmp == 0:
-            tmp = 1.0e-15
-        self.loss_sum[j] += -1*np.log(tmp)
-    def logloss_mean(self,pred,act,j):
-        tmp=np.sum(pred * act)
-        if tmp == 0:
-            tmp=1.0e-15
-        self.loss_mean[j] += -1*np.log(tmp)
-    def logloss_lstm(self,pred,act,j):
-        tmp=np.sum(pred * act)
-        if tmp == 0:
-            tmp=1.0e-15
-        self.loss_lstm[j] += -1*np.log(tmp)
-
+        with open('result/val_result.pickle','wb') as f:
+            pickle.dump(result,f)
 
 if __name__=='__main__':
     my=Validation(20)
