@@ -92,7 +92,7 @@ class Validation():
         train_names.append(['keihintohoku','keiyou','tyuou','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','uchibou'])
         train_names.append(['keihintohoku','keiyou','saikyoukawagoe','tyuou'])
-        my = xgboost()
+        my = gboost(False)
         j = train_names[0]
         result=[]
         #初期値は定数値で与える
