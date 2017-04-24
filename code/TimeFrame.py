@@ -25,10 +25,11 @@ class create_time_data():
         test_x=[]
         for i in tqdm(range(self.span,len(self.train),1)):
             one_step=[]
-            for j in range(self.span,-1,-1):
+            for j in range(self.span,0,-1):
                 one_step.append(self.train.ix[i-j].tolist()[4:])
             train_x.append(one_step)
         print('\n訓練データ作成完了:\t'+self.name)
+        print(np.array(train_x).shape)
         with open('../data/pickle/' + str(self.span) + self.name +'_'+str(self.distance)+'km_x.pickle', 'wb') as f:
             pickle.dump(np.array(train_x), f)
         with open('../data/pickle/' + str(self.span) + self.name +'_'+str(self.distance)+'km_y.pickle', 'wb') as f:
