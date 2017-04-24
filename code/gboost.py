@@ -7,7 +7,7 @@ class gboost():
     def __init__(self,warm):
         self.model_create(warm)
     def model_create(self,warm):
-        self.model = GradientBoostingClassifier(n_estimators=30,random_state=114514,warm_start=warm)
+        self.model = GradientBoostingClassifier(n_estimators=30,random_state=114514,warm_start=warm,max_features='auto')
     def fit(self,x,y):
         self.model.fit(x,y)
     def predict(self,x):
