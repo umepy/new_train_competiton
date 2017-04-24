@@ -3,6 +3,7 @@
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation,Dropout
+from keras.layers import BatchNormalization
 from keras.callbacks import EarlyStopping,History
 from keras.layers.recurrent import LSTM
 
@@ -13,6 +14,7 @@ class lstmC():
         self.HS = History()
     def model_create(self):
         self.model = Sequential()
+        self.model.add(BatchNormalization(input_shape=(18,8),axis=1))
         self.model.add(LSTM(18, init='uniform', inner_init='uniform', activation='tanh',
                             inner_activation='sigmoid', input_shape=(18, 8),
                             return_sequences=True))
