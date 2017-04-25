@@ -21,7 +21,7 @@ def doniti(date):
 
 class timeadd():
     def __init__(self,name,distance=20,NN=False):
-        self.train = pd.read_csv('../data/points/'+name+'_'+str(distance)+'_train.csv')
+        self.train = pd.read_csv('../data/points/'+name+'_'+str(distance)+'_test.csv')
         self.timedf=pd.read_csv('../data/train.csv',parse_dates=True,index_col=0)
         self.timedf = self.timedf.index.tolist()
         #時間をcos,sinに変換
@@ -43,11 +43,11 @@ class timeadd():
 
         if NN:
             with open('../data/pickle/' + name + '_' + str(distance) + '_NN.pickle', 'wb') as f:
-                pickle.dump(df, f)
+                 pickle.dump(df, f)
         else:
             with open('../data/pickle/'+name+'_'+str(distance)+'.pickle', 'wb') as f:
                 pickle.dump(self.train,f)
 
 if __name__=='__main__':
-    for i in ['keihintohoku', 'keiyou', 'saikyoukawagoe', 'tyuou', 'uchibou']:
-        my=timeadd(i,20,NN=True)
+    for i in ['sotobou','syonan','takasaki','utsunomiya','yamanote']:
+        my=timeadd(i,20,NN=False)

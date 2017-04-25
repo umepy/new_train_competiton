@@ -134,7 +134,7 @@ class Validation():
             models.append(gboost(True))
             nn_models.append(lstmC())
         result=[]
-        for i in range(1,len(self.trains['tyuou'])):
+        for i in range(1,12000):
             if i%1000==0:
                 nn_models = []
                 for _ in range(5):
